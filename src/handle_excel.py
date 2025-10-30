@@ -1,5 +1,5 @@
 import pandas as pd
-from src.scraping.scraping import search_duckduckgo
+from src.handle_scraping import search_duckduckgo
 import time
 import random
 import traceback
