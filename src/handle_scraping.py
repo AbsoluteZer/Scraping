@@ -47,19 +47,22 @@ def search_duckduckgo(query,filter):
                 for result in results:
                     title = result.get('title', '')
                     body = result.get('body', '')
+                    href = result.get('href', '')
                     
                     # Check title
                     title_found, title_matches = check_content_for_matches(title,filter)
                     if title_found:
                         print(f"  ✅ Found in title: {', '.join(title_matches)}")
-                        print(f"  � Title: {title}")
+                        print(f"Title: {title}, URL: {href}")
+
                         return (True, False)  # (found, blocked)
                     
                     # Check body
                     body_found, body_matches = check_content_for_matches(body,filter)
                     if body_found:
                         print(f"  ✅ Found in body: {', '.join(body_matches)}")
-                        print(f"  📄 Body excerpt: {body[:200]}...")
+                        print(f"URL: {href}")
+                        print(f"Body excerpt: {body[:200]}...")
                         return (True, False)  # (found, blocked)
             
             print("  ❌ No keyword found in search results")
