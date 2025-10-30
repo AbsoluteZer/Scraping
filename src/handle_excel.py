@@ -14,7 +14,7 @@ def choose_default_workers(io_bound=True):
     if not io_bound:
         return cores  # CPU bound: ~ cores
     # I/O bound: start with cores * 10, capped
-    return min(200, max(5, cores * 5))
+    return min(200, max(5, cores-2))
 
 def search_with_cache(name: str, cache: dict, filter: list) -> tuple:
     """
