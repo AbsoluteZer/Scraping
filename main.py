@@ -1,4 +1,4 @@
-from src.handle_excel import process_excel_file
+from src.handle_excel import run
 import os
 
 # File and directory configuration (using os.path for readability)
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     # Process the Excel file
     input_file = os.path.join(BASE_DIR, "tests", INPUT_FILE)
     output_dir = OUTPUT_DIR
-    process_excel_file(input_file, output_dir, filter)
+    run(input_file, output_dir, filter)

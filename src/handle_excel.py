@@ -1,5 +1,5 @@
 import pandas as pd
-from src.zaim.scraping import search_duckduckgo
+from src.scraping.scraping import search_duckduckgo
 import time
 import random
 import traceback
@@ -18,10 +18,7 @@ def search_with_cache(name: str, cache: dict,filter:list) -> bool:
     time.sleep(random.uniform(0.5, 1))  # Reduced delay for concurrent requests
     return found
 
-def process_excel_file(input_file: str, output_file: str,filter:list) -> None:
-    """
-    Read Excel file, search each name on DuckDuckGo, and update status.
-    
+def run(input_file: str, output_dir: str, filter: list, max_workers: int = 5) -> None:
     Args:
         input_file: Path to input Excel file
         output_file: Path to output Excel file
