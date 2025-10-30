@@ -9,10 +9,6 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "tests", "output")  # Output directory for p
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-print(f"Current Directory: {BASE_DIR}")
-print(f"Input File: {os.path.join(BASE_DIR, INPUT_FILE)}")
-print(f"Output Directory: {OUTPUT_DIR}")
-
 filter =[
     "corruption", "bribery", "embezzlement", "fraud", "money laundering", "laundering funds",
     "kickback", "graft", "misappropriation", "extortion", "embezzled funds", "embezzlement conviction",
@@ -35,7 +31,7 @@ filter =[
     "crypto tumbler", "leak", "whistleblower", "internal memo", "forensic audit", "investigative report",
     "offshore jurisdiction", "tax haven", "secrecy jurisdiction", "Panama", "British Virgin Islands",
     "Cayman Islands", "Jersey", "Guernsey", "Luxembourg", "Switzerland"
-] # List of filter words to search for
+] # Add your filter word here
 
 if __name__ == "__main__":
     # Process the Excel file
