@@ -1,9 +1,10 @@
 import pandas as pd
-from src.handle_scraping import search_duckduckgo
 import time
 import random
 import traceback
 import os
+
+from src.handle_scraping import search_duckduckgo
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict
 from datetime import datetime

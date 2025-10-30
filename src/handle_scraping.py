@@ -1,5 +1,6 @@
-from ddgs import DDGS
 import re
+
+from ddgs import DDGS
 
 
 def check_content_for_matches(text: str,filter:list) -> tuple:
