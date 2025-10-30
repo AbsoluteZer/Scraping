@@ -9,16 +9,29 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict
 from datetime import datetime
 
-def search_with_cache(name: str, cache: dict, filter: list) -> bool:
-    """Search name with caching."""
+def choose_default_workers(io_bound=True):
+    cores = os.cpu_count() or 1
+    if not io_bound:
+        return cores  # CPU bound: ~ cores
+    # I/O bound: start with cores * 10, capped
+    return min(200, max(5, cores * 5))
+
+def search_with_cache(name: str, cache: dict, filter: list) -> tuple:
+    """
+    Search name with caching.
+    
+    Returns:
+        tuple: (bool, bool) - (if match found, if search was blocked)
+    """
     if name in cache:
         return cache[name]
 
-    found = search_duckduckgo(name, filter)
-    cache[name] = found
+    found, blocked = search_duckduckgo(name, filter)
+    if not blocked:  # Only cache results if we weren't blocked
+        cache[name] = (found, blocked)
     # Reduced delay for concurrent requests
     time.sleep(random.uniform(0.5, 1))
-    return found
+    return found, blocked
 
 
 def read_excel(input_file: str) -> pd.DataFrame:
@@ -59,9 +72,12 @@ def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
         name = str(name).strip()
         print(f"Searching: {name}")
 
-        found = search_with_cache(name, search_cache, filter)
+        found, blocked = search_with_cache(name, search_cache, filter)
 
-        if found:
+        if blocked:
+            result["Status"] = "Empty"  # Set status to Empty when search is blocked
+            print(f"  ⚠️ Search for '{name}' was blocked - marking as Empty")
+        elif found:
             result["Status"] = "Adverse"
         else:
             result["Status"] = "No Adverse"
@@ -71,7 +87,7 @@ def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
     return result
 
 
-def run(input_file: str, output_dir: str, filter: list, max_workers: int = 5) -> None:
+def run(input_file: str, output_dir: str, filter: list) -> None:
     """High-level runner: read input, process rows (parallel), and write output.
 
     Args:
@@ -105,12 +121,12 @@ def run(input_file: str, output_dir: str, filter: list, max_workers: int = 5) ->
 
         # Prepare cache and stats
         search_cache: dict = {}
-        stats = {"found": 0, "not_found": 0, "empty": 0}
+        stats = {"found": 0, "not_found": 0, "empty": 0, "blocked": 0}
 
         # Run processing in parallel
         print("🔍 Starting parallel searches...\n")
         rows = df.to_dict("records")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=choose_default_workers()) as executor:
             # submit with needed extra args by mapping tuples
             futures = [executor.submit(process_row, row, search_cache, filter) for row in rows]
             results = [f.result() for f in futures]
@@ -122,6 +138,8 @@ def run(input_file: str, output_dir: str, filter: list, max_workers: int = 5) ->
                 stats["found"] += 1
             elif status == "No Adverse":
                 stats["not_found"] += 1
+            elif status == "Empty":  # Separate count for blocked searches
+                stats["blocked"] = stats.get("blocked", 0) + 1
             else:
                 stats["empty"] += 1
 
@@ -140,6 +158,7 @@ def run(input_file: str, output_dir: str, filter: list, max_workers: int = 5) ->
         print(f"Adverse: {stats['found']}")
         print(f"Not Adverse: {stats['not_found']}")
         print(f"Empty/Invalid: {stats['empty']}")
+        print(f"Blocked searches: {stats['blocked']}")
         print(f"\nResults saved to: {output_file}")
         print(f"Total execution time: {duration:.2f} seconds ({duration/60:.2f} minutes)")
         print("=" * 50)
