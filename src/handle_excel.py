@@ -5,7 +5,7 @@ import traceback
 import os
 
 from src.handle_scraping import search_duckduckgo
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
 from datetime import datetime
 
@@ -21,17 +21,17 @@ def search_with_cache(name: str, cache: dict, filter: list) -> tuple:
     Search name with caching.
     
     Returns:
-        tuple: (bool, bool) - (if match found, if search was blocked)
+        tuple: (bool, bool, list, int) - (if match found, if search was blocked, list of matched keywords, number of results)
     """
     if name in cache:
         return cache[name]
 
-    found, blocked = search_duckduckgo(name, filter)
+    found, blocked, matches, result_count = search_duckduckgo(name, filter)
     if not blocked:  # Only cache results if we weren't blocked
-        cache[name] = (found, blocked)
+        cache[name] = (found, blocked, matches, result_count)
     # Reduced delay for concurrent requests
     time.sleep(random.uniform(0.5, 1))
-    return found, blocked
+    return found, blocked, matches, result_count
 
 
 def read_excel(input_file: str) -> pd.DataFrame:
@@ -65,20 +65,23 @@ def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
     This function is intentionally pure with respect to external counters
     (it does not update shared stats). Caller should aggregate stats.
     """
-    result = {"ID": row.get("ID"), "Name": row.get("Name"), "Status": ""}
+    result = {"ID": row.get("ID"), "Name": row.get("Name"), "Status": "", "Keyword": "", "Results": 0}
     name = row.get("Name")
 
     if pd.notna(name) and str(name).strip():
         name = str(name).strip()
         print(f"Searching: {name}")
 
-        found, blocked = search_with_cache(name, search_cache, filter)
+        found, blocked, matches, result_count = search_with_cache(name, search_cache, filter)
+        result["Results"] = result_count  # Always store the result count
 
         if blocked:
             result["Status"] = "Empty"  # Set status to Empty when search is blocked
             print(f"  ⚠️ Search for '{name}' was blocked - marking as Empty")
         elif found:
             result["Status"] = "Adverse"
+            # join multiple matched keywords with comma
+            result["Keyword"] = ", ".join(matches) if matches else ""
         else:
             result["Status"] = "No Adverse"
     else:
@@ -103,6 +106,7 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    count =1
 
     try:
         start_time = datetime.now()
@@ -110,7 +114,7 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
         df = read_excel(input_file)
 
         # Verify required columns
-        required_columns = ["ID", "Name", "Status"]
+        required_columns = ["CIF", "Name", "Status"]
         if not all(col in df.columns for col in required_columns):
             print(f"❌ Error: Excel file must contain columns: {required_columns}")
             print(f"   Found columns: {list(df.columns)}")
@@ -126,10 +130,16 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
         # Run processing in parallel
         print("🔍 Starting parallel searches...\n")
         rows = df.to_dict("records")
+        count =1
         with ThreadPoolExecutor(max_workers=choose_default_workers()) as executor:
             # submit with needed extra args by mapping tuples
             futures = [executor.submit(process_row, row, search_cache, filter) for row in rows]
-            results = [f.result() for f in futures]
+            results = []
+            # simple processed counter printed as each job completes
+            for f in as_completed(futures):
+                r = f.result()
+                results.append(r)
+                print(f"Count: {len(results)}/{total_rows}")
 
         # Aggregate stats
         for r in results:

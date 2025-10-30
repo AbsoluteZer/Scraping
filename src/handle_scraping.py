@@ -33,7 +33,7 @@ def search_duckduckgo(query,filter):
         filter: List of filter words to search for
         
     Returns:
-        tuple: (bool, bool) - (if filter words found, if search was blocked)
+        tuple: (bool, bool, list, int) - (if filter words found, if search was blocked, list of matched keywords, number of results)
     """
     try:
         # Create DuckDuckGo search instance
@@ -62,29 +62,29 @@ def search_duckduckgo(query,filter):
             
             # Check each result
             if results:
-                for result in results:
-                    title = result.get('title', '')
-                    body = result.get('body', '')
-                    href = result.get('href', '')
-                    
-                    # Check title
-                    title_found, title_matches = check_content_for_matches(title,filter)
-                    if title_found:
-                        print(f"  ✅ Found in title: {', '.join(title_matches)}")
-                        print(f"Title: {title}, URL: {href}")
+                    for result in results:
+                        title = result.get('title', '')
+                        body = result.get('body', '')
+                        href = result.get('href', '')
 
-                        return (True, False)  # (found, blocked)
-                    
-                    # Check body
-                    body_found, body_matches = check_content_for_matches(body,filter)
-                    if body_found:
-                        print(f"  ✅ Found in body: {', '.join(body_matches)}")
-                        print(f"URL: {href}")
-                        print(f"Body excerpt: {body[:200]}...")
-                        return (True, False)  # (found, blocked)
+                        # Check title
+                        title_found, title_matches = check_content_for_matches(title,filter)
+                        if title_found:
+                            print(f"  ✅ Found in title: {', '.join(title_matches)}")
+                            print(f"Title: {title}, URL: {href}")
+
+                            return (True, False, title_matches, len(results))  # (found, blocked, matches, result_count)
+
+                        # Check body
+                        body_found, body_matches = check_content_for_matches(body,filter)
+                        if body_found:
+                            print(f"  ✅ Found in body: {', '.join(body_matches)}")
+                            print(f"URL: {href}")
+                            print(f"Body excerpt: {body[:200]}...")
+                            return (True, False, body_matches, len(results))  # (found, blocked, matches, result_count)
             
             print("  ❌ No keyword found in search results")
-            return (False, False)  # (found, blocked)
+            return (False, False, [], len(results))  # (found, blocked, matches, result_count)
                 
     except Exception as e:
         print(f"  ⚠️ Error searching '{query}': {str(e)}")
@@ -93,7 +93,7 @@ def search_duckduckgo(query,filter):
         is_blocked = any(term in error_msg for term in ['blocked', 'rate limit', '429', 'too many requests'])
         if is_blocked:
             print("  🚫 Search appears to be blocked by DuckDuckGo")
-        return (False, is_blocked)  # (found, blocked)
+        return (False, is_blocked, [], 0)  # (found, blocked, matches, result_count)
     
 def save_data(array:list,data:bool):
     """
