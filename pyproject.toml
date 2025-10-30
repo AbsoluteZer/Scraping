@@ -1,0 +1,25 @@
+[project]
+name = "Zaim"
+version = "0.1.0"
+description = "Untuk zaim"
+authors = [
+    {name = "Aliff", email = "aliffhaikal117@gmail.com"},
+]
+dependencies = ["pandas>=2.3.3", "requests>=2.32.5", "bs4>=0.0.2", "playwright>=1.55.0", "google>=3.0.0", "ddgs>=9.6.1", "openpyxl>=3.1.5"]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.scripts]
+# These are PDM-specific scripts you run with "pdm run <script-name>"
+
+# Simple command
+start = "python main.py"
