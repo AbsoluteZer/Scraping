@@ -38,9 +38,27 @@ def search_duckduckgo(query,filter):
     try:
         # Create DuckDuckGo search instance
         with DDGS() as ddgs:
-            # Get search results
-            results = list(ddgs.text(query, max_results=10))
-            print(f"  🔍 DuckDuckGo search for '{query}' returned {len(results)} results")
+            # Try up to 1 initial + 3 retries when fewer than 10 results are returned
+            max_retries = 3
+            attempt = 0
+            results = []
+            while attempt <= max_retries:
+                attempt += 1
+                results = list(ddgs.text(query, max_results=10))
+                if len(results) >= 10:
+                    if attempt > 1:
+                        print(f"  🔁 Got {len(results)} results on attempt {attempt}")
+                    break
+                # If not enough results and we have retries left, wait and try again
+                if attempt <= max_retries:
+                    wait = 0.5 * attempt
+                    print(f"  ⚠️ Only {len(results)} results returned (attempt {attempt}), retrying after {wait}s...")
+                    import time as _time
+                    _time.sleep(wait)
+                    continue
+                break
+
+            print(f"  🔍 DuckDuckGo search for '{query}' returned {len(results)} results (attempts: {attempt})")
             
             # Check each result
             if results:
