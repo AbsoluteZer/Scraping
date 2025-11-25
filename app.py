@@ -135,8 +135,26 @@ def process_file():
 def get_status(job_id):
     if job_id not in processing_jobs:
         return jsonify({'status': 'error', 'message': 'Job not found'}), 404
-    
-    return jsonify(processing_jobs[job_id])
+    # Copy job status and augment with result info if available
+    job = dict(processing_jobs[job_id])
+    try:
+        job_output_dir = job.get('output_dir')
+        if job_output_dir and os.path.exists(job_output_dir):
+            files = [f for f in os.listdir(job_output_dir) if f.endswith('.xlsx')]
+            job['result_count'] = len(files)
+            job['has_results'] = len(files) > 0
+            # include file names (limited to first 10 to avoid huge payloads)
+            job['result_files'] = files[:10]
+        else:
+            job['result_count'] = 0
+            job['has_results'] = False
+            job['result_files'] = []
+    except Exception:
+        job['result_count'] = 0
+        job['has_results'] = False
+        job['result_files'] = []
+
+    return jsonify(job)
 
 @app.route('/api/download/<job_id>')
 def download_results(job_id):
@@ -198,5 +216,5 @@ def run_scraper_bg(job_id, input_file, output_dir, filter_list):
         processing_jobs[job_id]['message'] = f'Error: {str(e)}'
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 2000))
     app.run(debug=False, host='0.0.0.0', port=port)

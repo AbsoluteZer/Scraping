@@ -346,6 +346,10 @@
         }
         
         function startProcessing() {
+            // Clear any previous download/result area before starting
+            const resultEl = document.getElementById('resultMessage');
+            if (resultEl) resultEl.innerHTML = '';
+
             fetch('/api/process', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -389,11 +393,16 @@
                             document.getElementById('progressFill').textContent = '100%';
                             
                             if (data.status === 'completed') {
-                                showMessage(
-                                    '<button onclick="downloadResults()" style="width: 100%; padding: 10px;">📥 Download Results</button>',
-                                    'success',
-                                    'resultMessage'
-                                );
+                                // Only show download button if backend reports results
+                                if (data.has_results) {
+                                    showMessage(
+                                        '<button onclick="downloadResults()" style="width: 100%; padding: 10px;">📥 Download Results</button>',
+                                        'success',
+                                        'resultMessage'
+                                    );
+                                } else {
+                                    showMessage('No result file was produced for this job due to excel format.', 'error', 'resultMessage');
+                                }
                             }
                         }
                     })

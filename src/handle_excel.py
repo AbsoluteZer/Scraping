@@ -133,7 +133,7 @@ def run(input_file: str, output_dir: str, filter: list, job_id: str = None, proc
         if not all(col in df.columns for col in required_columns):
             print(f"❌ Error: Excel file must contain columns: {required_columns}")
             print(f"   Found columns: {list(df.columns)}")
-            return
+            raise Exception(f"Missing required {required_columns} columns in input Excel file.")
 
         total_rows = len(df)
         print(f"✅ Found {total_rows} rows to process\n")
