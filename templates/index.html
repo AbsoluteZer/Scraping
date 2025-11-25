@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adverse Event Scraper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .section h2 {
+            color: #333;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input[type="file"],
+        input[type="number"],
+        textarea {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="file"]:focus,
+        input[type="number"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-group button {
+            flex: 1;
+        }
+        
+        .status-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status-box h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .status-box p {
+            color: #666;
+            font-size: 0.95em;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .message {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .tag-input {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .tag {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tag button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Adverse Event Scraper</h1>
+            <p>Upload Excel file, customize filters, and process data for adverse events</p>
+        </div>
+        
+        <div class="content">
+            <!-- Left Section: Upload & Process -->
+            <div class="section">
+                <h2>📤 Upload & Process</h2>
+                
+                <div class="form-group">
+                    <label for="fileInput">Select Excel File (.xlsx)</label>
+                    <input type="file" id="fileInput" accept=".xlsx">
+                    <span id="fileName" style="color: #999; font-size: 0.9em;"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxWorkers">Max Workers (Threads)</label>
+                    <input type="number" id="maxWorkers" value="20" min="1" max="100">
+                </div>
+                
+                <button onclick="uploadAndProcess()">🚀 Start Processing</button>
+                
+                <div id="statusContainer" style="display: none;">
+                    <div class="status-box">
+                        <h3 id="statusTitle">Processing...</h3>
+                        <p id="statusMessage"></p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill">0%</div>
+                        </div>
+                        <div id="resultMessage" style="margin-top: 15px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Section: Filter Management -->
+            <div class="section">
+                <h2>🏷️ Filter Keywords</h2>
+                
+                <textarea id="filterTextarea" placeholder="Enter keywords separated by commas..."></textarea>
+                
+                <div class="btn-group">
+                    <button onclick="loadDefaultFilter()">📋 Load Default</button>
+                    <button onclick="saveFilter()">💾 Save Filter</button>
+                </div>
+                
+                <div id="filterMessage"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentJobId = null;
+        let uploadedFilename = null;
+        let currentFilter = [];
+        
+        // Load default filter on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDefaultFilter();
+        });
+        
+        function loadDefaultFilter() {
+            fetch('/api/filter')
+                .then(res => res.json())
+                .then(data => {
+                    currentFilter = data.filter;
+                    updateFilterTextarea();
+                    showMessage('Filter loaded successfully', 'success', 'filterMessage');
+                })
+                .catch(err => showMessage('Error loading filter: ' + err, 'error', 'filterMessage'));
+        }
+        
+        function updateFilterTextarea() {
+            document.getElementById('filterTextarea').value = currentFilter.join(', ');
+        }
+        
+        function saveFilter() {
+            const filterText = document.getElementById('filterTextarea').value;
+            const filterArray = filterText.split(',').map(f => f.trim()).filter(f => f);
+            
+            fetch('/api/filter', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filter: filterArray})
+            })
+            .then(res => res.json())
+            .then(data => {
+                currentFilter = data.filter;
+                showMessage(`Filter saved! (${currentFilter.length} keywords)`, 'success', 'filterMessage');
+            })
+            .catch(err => showMessage('Error saving filter: ' + err, 'error', 'filterMessage'));
+        }
+        
+        function uploadAndProcess() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                showMessage('Please select a file first', 'error', 'resultMessage');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    uploadedFilename = data.filename;
+                    document.getElementById('fileName').textContent = `✓ ${data.original_name}`;
+                    startProcessing();
+                } else {
+                    showMessage('Upload failed: ' + data.message, 'error', 'resultMessage');
+                }
+            })
+            .catch(err => showMessage('Upload error: ' + err, 'error', 'resultMessage'));
+        }
+        
+        function startProcessing() {
+            const maxWorkers = document.getElementById('maxWorkers').value;
+            
+            fetch('/api/process', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filename: uploadedFilename,
+                    max_workers: maxWorkers,
+                    filter: currentFilter
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentJobId = data.job_id;
+                    document.getElementById('statusContainer').style.display = 'block';
+                    monitorProgress();
+                } else {
+                    showMessage('Processing failed: ' + data.message, 'error', 'resultMessage');
+                }
+            })
+            .catch(err => showMessage('Processing error: ' + err, 'error', 'resultMessage'));
+        }
+        
+        function monitorProgress() {
+            const checkStatus = setInterval(() => {
+                fetch(`/api/status/${currentJobId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('statusTitle').textContent = 
+                            data.status === 'completed' ? '✓ Completed' :
+                            data.status === 'error' ? '✗ Error' : 'Processing...';
+                        
+                        document.getElementById('statusMessage').textContent = data.message;
+                        
+                        if (data.status !== 'processing') {
+                            clearInterval(checkStatus);
+                            document.getElementById('progressFill').style.width = '100%';
+                            document.getElementById('progressFill').textContent = '100%';
+                            
+                            if (data.status === 'completed') {
+                                showMessage(
+                                    '<button onclick="downloadResults()" style="width: 100%; padding: 10px;">📥 Download Results</button>',
+                                    'success',
+                                    'resultMessage'
+                                );
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Status check error:', err));
+            }, 1000);
+        }
+        
+        function downloadResults() {
+            window.location.href = `/api/download/${currentJobId}`;
+        }
+        
+        function showMessage(msg, type, elementId) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="message ${type}">${msg}</div>`;
+        }
+    </script>
+</body>
+</html>
