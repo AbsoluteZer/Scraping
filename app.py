@@ -62,19 +62,30 @@ def manage_filter():
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
+        print("❌ Upload error: No file provided")
         return jsonify({'status': 'error', 'message': 'No file provided'}), 400
     
     file = request.files['file']
     if file.filename == '':
+        print("❌ Upload error: No file selected")
         return jsonify({'status': 'error', 'message': 'No file selected'}), 400
     
     if not file.filename.endswith('.xlsx'):
+        print(f"❌ Upload error: Invalid file type - {file.filename}")
         return jsonify({'status': 'error', 'message': 'Only .xlsx files allowed'}), 400
     
     # Save uploaded file
     filename = f"{uuid.uuid4()}_{file.filename}"
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
+    
+    file_size = os.path.getsize(filepath)
+    print(f"\n✅ FILE UPLOADED SUCCESSFULLY!")
+    print(f"   Original name: {file.filename}")
+    print(f"   Saved as: {filename}")
+    print(f"   Full path: {filepath}")
+    print(f"   File size: {file_size} bytes")
+    print(f"   Upload folder: {UPLOAD_FOLDER}\n")
     
     return jsonify({
         'status': 'success',
@@ -87,7 +98,6 @@ def upload_file():
 def process_file():
     data = request.json
     uploaded_filename = data.get('filename')
-    max_workers = int(data.get('max_workers', 20))
     filter_list = data.get('filter', DEFAULT_FILTER)
     job_id = str(uuid.uuid4())
     
@@ -105,13 +115,16 @@ def process_file():
         'status': 'processing',
         'progress': 0,
         'message': 'Starting...',
-        'filename': uploaded_filename
+        'filename': uploaded_filename,
+        'output_dir': job_output_dir,
+        'total_rows': 0,
+        'processed_rows': 0
     }
     
     # Run processing in background thread
     thread = threading.Thread(
         target=run_scraper_bg,
-        args=(job_id, input_file, job_output_dir, filter_list, max_workers)
+        args=(job_id, input_file, job_output_dir, filter_list)
     )
     thread.daemon = True
     thread.start()
@@ -127,31 +140,60 @@ def get_status(job_id):
 
 @app.route('/api/download/<job_id>')
 def download_results(job_id):
-    job_output_dir = os.path.join(OUTPUT_FOLDER, job_id)
+    if job_id not in processing_jobs:
+        return jsonify({'status': 'error', 'message': 'Job not found'}), 404
+    
+    job_output_dir = processing_jobs[job_id]['output_dir']
     
     # Find the first .xlsx file in the output directory
     if not os.path.exists(job_output_dir):
-        return jsonify({'status': 'error', 'message': 'Results not found'}), 404
+        return jsonify({'status': 'error', 'message': 'Results directory not found'}), 404
     
     files = [f for f in os.listdir(job_output_dir) if f.endswith('.xlsx')]
     if not files:
-        return jsonify({'status': 'error', 'message': 'No result files found'}), 404
+        return jsonify({'status': 'error', 'message': f'No result files found in {job_output_dir}. Files: {os.listdir(job_output_dir)}'}), 404
     
     result_file = os.path.join(job_output_dir, files[0])
+    
+    if not os.path.exists(result_file):
+        return jsonify({'status': 'error', 'message': f'Result file not accessible: {result_file}'}), 404
+    
     return send_file(result_file, as_attachment=True, download_name=f"results_{job_id}.xlsx")
 
-def run_scraper_bg(job_id, input_file, output_dir, filter_list, max_workers):
+def run_scraper_bg(job_id, input_file, output_dir, filter_list):
     """Background task to run scraper"""
     try:
         processing_jobs[job_id]['status'] = 'processing'
         processing_jobs[job_id]['message'] = 'Processing file...'
         
-        run(input_file, output_dir, filter_list, max_workers=max_workers)
+        print(f"\n[Job {job_id}] === STARTING SCRAPER ===")
+        print(f"[Job {job_id}] Input file: {input_file}")
+        print(f"[Job {job_id}] Output dir: {output_dir}")
+        print(f"[Job {job_id}] Input exists: {os.path.exists(input_file)}")
+        print(f"[Job {job_id}] Output dir exists: {os.path.exists(output_dir)}")
+        
+        # Call run with job_id for progress tracking
+        run(input_file, output_dir, filter_list, job_id=job_id, processing_jobs=processing_jobs)
+
+        # Verify output files exist
+        output_files = os.listdir(output_dir)
+        print(f"[Job {job_id}] Output files created: {output_files}")
+        
+        if not output_files:
+            print(f"[Job {job_id}] WARNING: No output files found!")
         
         processing_jobs[job_id]['status'] = 'completed'
         processing_jobs[job_id]['message'] = 'Processing completed successfully!'
         processing_jobs[job_id]['progress'] = 100
+        print(f"[Job {job_id}] === SCRAPER COMPLETED ===\n")
+        
     except Exception as e:
+        print(f"[Job {job_id}] === SCRAPER ERROR ===")
+        print(f"[Job {job_id}] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print(f"[Job {job_id}] === END ERROR ===\n")
+        
         processing_jobs[job_id]['status'] = 'error'
         processing_jobs[job_id]['message'] = f'Error: {str(e)}'
 

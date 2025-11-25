@@ -244,12 +244,9 @@
                     <span id="fileName" style="color: #999; font-size: 0.9em;"></span>
                 </div>
                 
-                <div class="form-group">
-                    <label for="maxWorkers">Max Workers (Threads)</label>
-                    <input type="number" id="maxWorkers" value="20" min="1" max="100">
-                </div>
-                
                 <button onclick="uploadAndProcess()">🚀 Start Processing</button>
+                
+                <button onclick="resetForm()" style="background: #999;">🔄 Reset</button>
                 
                 <div id="statusContainer" style="display: none;">
                     <div class="status-box">
@@ -349,14 +346,11 @@
         }
         
         function startProcessing() {
-            const maxWorkers = document.getElementById('maxWorkers').value;
-            
             fetch('/api/process', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     filename: uploadedFilename,
-                    max_workers: maxWorkers,
                     filter: currentFilter
                 })
             })
@@ -384,6 +378,11 @@
                         
                         document.getElementById('statusMessage').textContent = data.message;
                         
+                        // Update progress bar
+                        const progress = data.progress || 0;
+                        document.getElementById('progressFill').style.width = progress + '%';
+                        document.getElementById('progressFill').textContent = progress + '%';
+                        
                         if (data.status !== 'processing') {
                             clearInterval(checkStatus);
                             document.getElementById('progressFill').style.width = '100%';
@@ -404,6 +403,28 @@
         
         function downloadResults() {
             window.location.href = `/api/download/${currentJobId}`;
+        }
+        
+        function resetForm() {
+            // Reset file input
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileName').textContent = '';
+            
+            // Hide status container
+            document.getElementById('statusContainer').style.display = 'none';
+            
+            // Clear status messages
+            document.getElementById('statusTitle').textContent = 'Processing...';
+            document.getElementById('statusMessage').textContent = '';
+            document.getElementById('resultMessage').innerHTML = '';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressFill').textContent = '0%';
+            
+            // Reset variables
+            currentJobId = null;
+            uploadedFilename = null;
+            
+            console.log('Form reset successfully');
         }
         
         function showMessage(msg, type, elementId) {

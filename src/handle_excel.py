@@ -47,16 +47,36 @@ def read_excel(input_file: str) -> pd.DataFrame:
     return pd.read_excel(input_file)
 
 
-def write_excel(results: List[Dict], output_file: str) -> None:
-    """Write results (list of dict) to an Excel file.
-
-    Args:
-        results: List of row dictionaries.
-        output_file: Path to the output Excel file.
-    """
-    print(f"\n💾 Saving results to {output_file}...")
-    results_df = pd.DataFrame(results)
-    results_df.to_excel(output_file, index=False)
+def write_excel(results: list, output_dir: str) -> str:
+    """Write results to Excel file"""
+    try:
+        df = pd.DataFrame(results)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"Adverse_Events_{timestamp}.xlsx"
+        filepath = os.path.join(output_dir, filename)
+        
+        print(f"\n📝 Saving results...")
+        print(f"   Output directory: {output_dir}")
+        print(f"   Directory exists: {os.path.exists(output_dir)}")
+        print(f"   Full path: {filepath}")
+        print(f"   Number of results: {len(results)}")
+        
+        df.to_excel(filepath, index=False)
+        
+        if os.path.exists(filepath):
+            file_size = os.path.getsize(filepath)
+            print(f"✅ File saved successfully!")
+            print(f"   File: {filename}")
+            print(f"   Size: {file_size} bytes")
+        else:
+            print(f"❌ ERROR: File was not created at {filepath}")
+        
+        return filepath
+    except Exception as e:
+        print(f"❌ Error writing Excel file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
@@ -90,23 +110,18 @@ def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
     return result
 
 
-def run(input_file: str, output_dir: str, filter: list) -> None:
+def run(input_file: str, output_dir: str, filter: list, job_id: str = None, processing_jobs: dict = None) -> None:
     """High-level runner: read input, process rows (parallel), and write output.
 
     Args:
         input_file: Path to input Excel file.
         output_dir: Directory where output file will be written.
         filter: List of filter words/patterns to pass to the scraper.
-        max_workers: Number of threads for concurrent processing.
+        job_id: Optional job ID for progress tracking.
+        processing_jobs: Optional dict to update progress.
     """
-    # Build unique output filename using timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_name = os.path.splitext(os.path.basename(input_file))[0]
-    output_file = os.path.join(output_dir, f"{input_name}_{timestamp}.xlsx")
-
     # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    count =1
+    os.makedirs(output_dir, exist_ok=True)
 
     try:
         start_time = datetime.now()
@@ -130,7 +145,11 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
         # Run processing in parallel
         print("🔍 Starting parallel searches...\n")
         rows = df.to_dict("records")
-        count =1
+        
+        # Update progress tracking if job_id provided
+        if job_id and processing_jobs:
+            processing_jobs[job_id]['total_rows'] = total_rows
+        
         with ThreadPoolExecutor(max_workers=choose_default_workers()) as executor:
             # submit with needed extra args by mapping tuples
             futures = [executor.submit(process_row, row, search_cache, filter) for row in rows]
@@ -139,7 +158,14 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
             for f in as_completed(futures):
                 r = f.result()
                 results.append(r)
-                print(f"Count: {len(results)}/{total_rows}")
+                processed_count = len(results)
+                print(f"Count: {processed_count}/{total_rows}")
+                
+                # Update progress percentage if tracking enabled
+                if job_id and processing_jobs:
+                    progress_pct = int((processed_count / total_rows) * 100)
+                    processing_jobs[job_id]['processed_rows'] = processed_count
+                    processing_jobs[job_id]['progress'] = progress_pct
 
         # Aggregate stats
         for r in results:
@@ -154,7 +180,7 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
                 stats["empty"] += 1
 
         # Write results
-        write_excel(results, output_file)
+        write_excel(results, output_dir)
 
         # Calculate execution time
         end_time = datetime.now()
@@ -169,7 +195,7 @@ def run(input_file: str, output_dir: str, filter: list) -> None:
         print(f"Not Adverse: {stats['not_found']}")
         print(f"Empty/Invalid: {stats['empty']}")
         print(f"Blocked searches: {stats['blocked']}")
-        print(f"\nResults saved to: {output_file}")
+        print(f"\nResults saved to: {output_dir}")
         print(f"Total execution time: {duration:.2f} seconds ({duration/60:.2f} minutes)")
         print("=" * 50)
 
