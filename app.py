@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file, session
 import os
 import json
 import threading
+import time
 from src.handle_excel import run
 from datetime import datetime
 import uuid
@@ -180,9 +181,11 @@ def download_results(job_id):
 
 def run_scraper_bg(job_id, input_file, output_dir, filter_list):
     """Background task to run scraper"""
+    start_time = time.time()
     try:
         processing_jobs[job_id]['status'] = 'processing'
         processing_jobs[job_id]['message'] = 'Processing file...'
+        processing_jobs[job_id]['start_time'] = start_time
         
         print(f"\n[Job {job_id}] === STARTING SCRAPER ===")
         print(f"[Job {job_id}] Input file: {input_file}")
@@ -200,21 +203,35 @@ def run_scraper_bg(job_id, input_file, output_dir, filter_list):
         if not output_files:
             print(f"[Job {job_id}] WARNING: No output files found!")
         
+        # Calculate elapsed time
+        elapsed_time = time.time() - start_time
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        time_str = f"{minutes}m {seconds}s"
+        
         processing_jobs[job_id]['status'] = 'completed'
-        processing_jobs[job_id]['message'] = 'Processing completed successfully!'
+        processing_jobs[job_id]['message'] = f'✅ Processing completed in {time_str}!'
         processing_jobs[job_id]['progress'] = 100
-        print(f"[Job {job_id}] === SCRAPER COMPLETED ===\n")
+        processing_jobs[job_id]['elapsed_time'] = elapsed_time
+        processing_jobs[job_id]['time_str'] = time_str
+        print(f"[Job {job_id}] === SCRAPER COMPLETED in {time_str} ===\n")
         
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        
         print(f"[Job {job_id}] === SCRAPER ERROR ===")
-        print(f"[Job {job_id}] Exception: {str(e)}")
+        print(f"[Job {job_id}] Exception after {minutes}m {seconds}s: {str(e)}")
         import traceback
         traceback.print_exc()
         print(f"[Job {job_id}] === END ERROR ===\n")
         
         processing_jobs[job_id]['status'] = 'error'
-        processing_jobs[job_id]['message'] = f'Error: {str(e)}'
+        processing_jobs[job_id]['message'] = f'✗ Error: {str(e)}'
+        processing_jobs[job_id]['elapsed_time'] = elapsed_time
+        processing_jobs[job_id]['time_str'] = f"{minutes}m {seconds}s"
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 2000))
+    port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)

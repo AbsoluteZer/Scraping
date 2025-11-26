@@ -376,9 +376,18 @@
                 fetch(`/api/status/${currentJobId}`)
                     .then(res => res.json())
                     .then(data => {
+                        // Format elapsed time display
+                        let timeDisplay = '';
+                        if (data.elapsed_time) {
+                            const mins = Math.floor(data.elapsed_time / 60);
+                            const secs = Math.floor(data.elapsed_time % 60);
+                            timeDisplay = ` (${mins}m ${secs}s)`;
+                        }
+                        
                         document.getElementById('statusTitle').textContent = 
-                            data.status === 'completed' ? '✓ Completed' :
-                            data.status === 'error' ? '✗ Error' : 'Processing...';
+                            data.status === 'completed' ? `✓ Completed${timeDisplay}` :
+                            data.status === 'error' ? `✗ Error${timeDisplay}` : 
+                            `Processing${timeDisplay}...`;
                         
                         document.getElementById('statusMessage').textContent = data.message;
                         
