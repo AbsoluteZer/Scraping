@@ -402,13 +402,17 @@
                             document.getElementById('progressFill').textContent = '100%';
                             
                             if (data.status === 'completed') {
-                                // Only show download button if backend reports results
+                                // Auto-download if results exist
                                 if (data.has_results) {
                                     showMessage(
-                                        '<button onclick="downloadResults()" style="width: 100%; padding: 10px;">📥 Download Results</button>',
+                                        '✅ Processing completed! File is downloading automatically...',
                                         'success',
                                         'resultMessage'
                                     );
+                                    // Auto-download after 1 second
+                                    setTimeout(() => {
+                                        downloadResults();
+                                    }, 1000);
                                 } else {
                                     showMessage('No result file was produced for this job due to excel format.', 'error', 'resultMessage');
                                 }
