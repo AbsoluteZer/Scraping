@@ -85,8 +85,9 @@ def process_row(row: dict, search_cache: dict, filter: list) -> Dict:
     This function is intentionally pure with respect to external counters
     (it does not update shared stats). Caller should aggregate stats.
     """
-    result = {"ID": row.get("ID"), "Name": row.get("Name"), "Status": "", "Keyword": "", "Results": 0}
+    result = {"CIF": row.get("CIF"), "Name": row.get("Name"), "Status": "", "Keyword": "", "Results": 0}
     name = row.get("Name")
+    cif = row.get("CIF")
 
     if pd.notna(name) and str(name).strip():
         name = str(name).strip()
